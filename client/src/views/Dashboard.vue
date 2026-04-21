@@ -48,10 +48,10 @@
             <div class="kpi-header">
               <span class="kpi-label">{{ t(selectedPeriod === 'all' ? 'dashboard.kpi.revenueYTD' : 'dashboard.kpi.revenueMTD') }}</span>
             </div>
-            <div class="kpi-value">{{ formatCurrency(Math.round(summary.total_orders_value), selectedCurrency) }}</div>
-            <div class="kpi-goal">{{ t('dashboard.kpi.goal') }}: {{ formatCurrency(revenueGoal, selectedCurrency) }} ({{ summary.total_orders_value > revenueGoal ? '+' : '' }}{{ ((summary.total_orders_value / revenueGoal - 1) * 100).toFixed(1) }}%)</div>
+            <div class="kpi-value">{{ formatCurrency(Math.round(summary.total_orders_value ?? 0), selectedCurrency) }}</div>
+            <div class="kpi-goal">{{ t('dashboard.kpi.goal') }}: {{ formatCurrency(revenueGoal, selectedCurrency) }} ({{ (summary.total_orders_value ?? 0) > revenueGoal ? '+' : '' }}{{ (((summary.total_orders_value ?? 0) / revenueGoal - 1) * 100).toFixed(1) }}%)</div>
             <div class="kpi-progress-bar">
-              <div class="kpi-progress" :style="{ width: Math.min((summary.total_orders_value / revenueGoal * 100), 100) + '%' }"></div>
+              <div class="kpi-progress" :style="{ width: Math.min(((summary.total_orders_value ?? 0) / revenueGoal * 100), 100) + '%' }"></div>
             </div>
           </div>
 
@@ -312,10 +312,10 @@ export default {
     BacklogDetailModal,
   },
   setup() {
-    const { t, currentCurrency, translateProductName, translateWarehouse } = useI18n()
+    const { t, currentCurrency, translateProductName, translateWarehouse, currentLocale } = useI18n()
     const loading = ref(true)
     const error = ref(null)
-    const summary = ref({})
+    const summary = ref({ total_orders_value: 0 })
     const allOrders = ref([])
     const inventoryItems = ref([])
 
@@ -563,7 +563,7 @@ export default {
         loading.value = true
         const filters = getCurrentFilters()
 
-        const [summaryData, ordersData, inventoryData, backlogData] = await Promise.all([
+        const [summaryData, ordersResult, inventoryData, backlogData] = await Promise.all([
           api.getDashboardSummary(filters),
           api.getOrders(filters),
           api.getInventory(filters),
@@ -571,7 +571,7 @@ export default {
         ])
 
         summary.value = summaryData
-        allOrders.value = ordersData
+        allOrders.value = ordersResult
         inventoryItems.value = inventoryData
         allBacklogItems.value = backlogData
       } catch (err) {
@@ -634,7 +634,6 @@ export default {
 
     const formatDate = (dateString) => {
       if (!dateString) return '-'
-      const { currentLocale } = useI18n()
       const locale = currentLocale.value === 'ja' ? 'ja-JP' : 'en-US'
       const date = new Date(dateString)
       return date.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })
